@@ -89,6 +89,53 @@ describe('unseen activity queries', () => {
   })
 })
 
+describe('getUnseenActivityCountsByPlatform', () => {
+  it('groups the unseen tickets of one organization by channel, largest first then by name', async () => {
+    const { calls, tq } = await withDb(() => [['github', 8], ['slack', 3]])
+    expect(await tq.getUnseenActivityCountsByPlatform(3)).toEqual([
+      { platform: 'github', count: 8 },
+      { platform: 'slack', count: 3 },
+    ])
+    expect(calls).toHaveLength(1)
+    const q = lower(calls[0].sql)
+    expect(q).toContain('"tickets"."org_id" = $1')
+    expect(q).toMatch(UNSEEN)
+    expect(q).toContain('group by "tickets"."source_platform"')
+    expect(q).toMatch(/order by count\(\*\)::int desc, "tickets"\."source_platform" asc/)
+    expect(calls[0].params).toEqual([3])
+  })
+
+  it('returns an empty list when nothing is unseen', async () => {
+    const { tq } = await withDb()
+    expect(await tq.getUnseenActivityCountsByPlatform(3)).toEqual([])
+  })
+})
+
+describe('getTickets platform filter', () => {
+  it('filters by source platform, scoped by organization', async () => {
+    const { calls, tq } = await withDb()
+    await tq.getTickets({ platform: 'github' }, 3)
+    const q = lower(calls[0].sql)
+    expect(q).toContain('"tickets"."org_id" = $1')
+    expect(q).toContain('"tickets"."source_platform" = $2')
+    expect(calls[0].params.slice(0, 2)).toEqual([3, 'github'])
+  })
+
+  it('combines with the new activity filter', async () => {
+    const { calls, tq } = await withDb()
+    await tq.getTickets({ platform: 'email', newActivity: true }, 3)
+    const q = lower(calls[0].sql)
+    expect(q).toContain('"tickets"."source_platform" = $2')
+    expect(q).toMatch(UNSEEN)
+  })
+
+  it('adds no platform condition when the filter is absent', async () => {
+    const { calls, tq } = await withDb()
+    await tq.getTickets({}, 3)
+    expect(lower(calls[0].sql)).not.toContain('source_platform" =')
+  })
+})
+
 describe('getTickets activity options', () => {
   it('default ordering is by created_at and ignores last_activity_at', async () => {
     const { calls, tq } = await withDb()

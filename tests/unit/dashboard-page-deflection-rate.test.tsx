@@ -6,6 +6,7 @@ const h = vi.hoisted(() => ({
   statsCards: vi.fn(),
   getDeflectionStats: vi.fn(),
   getUnseenActivityTickets: vi.fn(async (): Promise<{ tickets: never[]; total: number; snapshot?: string }> => ({ tickets: [], total: 0 })),
+  getUnseenActivityCountsByPlatform: vi.fn(async (): Promise<{ platform: string; count: number }[]> => []),
   activityDisclosure: vi.fn(),
   user: { name: 'Sam Lee' } as { id?: string; name: string },
 }))
@@ -19,6 +20,7 @@ vi.mock('@/lib/db/queries/tickets', () => ({
   getSLABreachedTickets: async () => [],
   getTickets: async () => [],
   getUnseenActivityTickets: h.getUnseenActivityTickets,
+  getUnseenActivityCountsByPlatform: h.getUnseenActivityCountsByPlatform,
 }))
 vi.mock('@/lib/db/queries/analytics', () => ({ getDeflectionStats: h.getDeflectionStats }))
 vi.mock('@/components/dashboard/stats-cards', () => ({
@@ -68,6 +70,19 @@ describe('DashboardPage activity preview', () => {
     await DashboardPage()
 
     expect(h.getUnseenActivityTickets).toHaveBeenCalledExactlyOnceWith(7, 5)
+  })
+
+  it('requests the channel breakdown for the current organization and hands it to the panel', async () => {
+    h.getDeflectionStats.mockResolvedValue({ deflected: 0, answered: 0 })
+    const channels = [{ platform: 'github', count: 8 }, { platform: 'discord', count: 3 }]
+    h.getUnseenActivityCountsByPlatform.mockResolvedValue(channels)
+    h.getUnseenActivityTickets.mockResolvedValue({ tickets: [{ id: 1, org_ticket_number: 1, content: 'x', source_platform: 'github' }] as never[], total: 11 })
+    render(await DashboardPage())
+
+    expect(h.getUnseenActivityCountsByPlatform).toHaveBeenCalledExactlyOnceWith(7)
+    const props = h.activityDisclosure.mock.calls[0][0] as { total: number; channels: { props: { channels: unknown } } }
+    expect(props.total).toBe(11)
+    expect(props.channels.props.channels).toEqual(channels)
   })
 })
 

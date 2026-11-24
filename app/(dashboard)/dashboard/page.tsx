@@ -1,4 +1,4 @@
-import { getTicketStats, getSLABreachedTickets, getTickets, getUnseenActivityTickets } from '@/lib/db/queries/tickets'
+import { getTicketStats, getSLABreachedTickets, getTickets, getUnseenActivityCountsByPlatform, getUnseenActivityTickets } from '@/lib/db/queries/tickets'
 import { signActivitySnapshot } from '@/lib/tickets/activity-snapshot'
 import { getDeflectionStats } from '@/lib/db/queries/analytics'
 import { deflectionRate as calculateDeflectionRate } from '@/lib/analytics/roi'
@@ -22,12 +22,13 @@ function rowSummary(content: string): string {
 export default async function DashboardPage() {
   const session = await auth()
   const orgId = session?.orgId ?? DEFAULT_ORG_ID
-  const [stats, breachedTickets, recentTickets, deflectionStats, activity] = await Promise.all([
+  const [stats, breachedTickets, recentTickets, deflectionStats, activity, activityChannels] = await Promise.all([
     getTicketStats(orgId),
     getSLABreachedTickets(orgId),
     getTickets({ status: 'open' }, orgId, 6),
     getDeflectionStats(orgId),
     getUnseenActivityTickets(orgId, ACTIVITY_PREVIEW_LIMIT),
+    getUnseenActivityCountsByPlatform(orgId),
   ])
   const dashboardDeflectionRate = Math.round(
     calculateDeflectionRate(deflectionStats.deflected, deflectionStats.answered) * 100
@@ -63,6 +64,7 @@ export default async function DashboardPage() {
       <ActivityPanel
         tickets={activity.tickets}
         total={activity.total}
+        channels={activityChannels}
         snapshot={activity.snapshot}
         proof={session?.user?.id && activity.snapshot
           ? signActivitySnapshot(activity.snapshot, orgId, Number(session.user.id))
