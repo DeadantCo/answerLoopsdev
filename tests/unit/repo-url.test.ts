@@ -35,7 +35,7 @@ const TEXT_EXTENSIONS = new Set(['.ts', '.tsx', '.mdx', '.md', '.json', '.txt', 
 const originUrl = execSync('git remote get-url origin', { cwd: repoRoot, encoding: 'utf-8' }).trim()
 
 // The DeadantCo fork's origin can never be the public repository, so this check only runs elsewhere.
-const isDeadantCoFork = /github\.com[/:]deadantco\/answerloops(\.git)?$/i.test(originUrl)
+const isDeadantCoFork = /github\.com[/:]deadantco\/answerloops(dev)?(\.git)?$/i.test(originUrl)
 
 describe('the public repository URL', () => {
   it.skipIf(isDeadantCoFork)('is the repository the git remote actually points at', () => {
