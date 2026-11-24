@@ -194,6 +194,62 @@ manual-setup block on the Integrations page.
 `scripts/docs-demo/.tmp/` holds the session cookie and the pin previews. It is
 gitignored; never commit it.
 
+## Clips
+
+`pnpm docs:clips` records short looping clips of scripted flows against the
+demo workspace and writes one small WebM and one still image per entry in
+`clips.manifest.ts`. The docs play them with the `DemoClip` component.
+
+```bash
+pnpm docs:seed                           # clips that change data need a fresh workspace
+DATABASE_URL=$DATABASE_URL pnpm docs:clips
+DATABASE_URL=$DATABASE_URL pnpm docs:clips approve-draft   # only these ids
+```
+
+Steps 1 to 4 above must be done and the app running. The recorder needs
+`ffmpeg` with the `libvpx-vp9` encoder on `PATH` (or `FFMPEG_PATH=<path-to-ffmpeg>`).
+It is not a project dependency.
+
+Guards: like the seed, it refuses to run unless `DATABASE_URL` is local and the
+environment is a developer machine (see the guard list at the top). It also
+refuses a `DOCS_BASE_URL` that is not `localhost`, `127.0.0.1` or `[::1]`,
+because a clip clicks through the dashboard.
+
+What it does: records at 1280x720 with light colour scheme, reduced motion and
+a red dot that follows the pointer (video does not include the real cursor).
+Page loading is trimmed off the start. Dev-only chrome and the feedback
+button are hidden. Seeded credential text is rewritten as the page renders (the
+same `DEFAULT_TEXT_MASKS` as screenshots), and after every step the page is
+scanned like a screenshot is. If anything unsafe is found, a step cannot run,
+the page logs a console error, the clip runs over 20 seconds, or no encoding
+fits under 1 MB, the clip is not written.
+
+Output is deterministic enough to commit: fixed viewport, 12 fps, a fixed output
+width, single-threaded VP9 with bit-exact flags and no metadata, and a quality
+ladder that picks the first setting under the 1 MB budget. The recording step
+itself is timed by a real browser, so the same clip run twice can differ by a
+few frames; re-record a clip only when the UI it shows has changed.
+
+Outputs, both meant to be committed:
+
+- `public/docs/clips/<id>.webm` and `public/docs/clips/<id>.webp` (the still).
+- `lib/docs/clips.generated.json`, keys sorted by id, with `src`, `poster`,
+  `width`, `height`, `title` and `description`.
+
+Use a clip in a docs page with `<DemoClip clip="approve-draft" />`. It plays
+muted, looped and inline; the video file is not requested until the clip is
+within about 200px of the viewport; readers who prefer reduced motion see the
+still image with a play button; every clip shows its description as a caption.
+An unknown id fails the docs build.
+
+### Adding a clip
+
+Append an object to `CLIPS` in `clips.manifest.ts`: `id` (kebab-case), `route`,
+`waitFor`, `steps` (`click`, `waitFor`, `pause`, and exactly one `{ poster: true }`
+for the still image), a short `title` and a `description` of what happens. Keep
+it to a few steps. Prefer flows that do not change data; the `approve-draft`
+clip does, so it only works from a freshly seeded workspace.
+
 ## Routes
 
 `/dashboard`, `/tickets`, `/tickets/<number>`, `/kb` (Manage, Knowledge

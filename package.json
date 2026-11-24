@@ -34,6 +34,7 @@
     "docs:session": "tsx scripts/docs-demo/session.ts",
     "demo:open": "tsx scripts/docs-demo/open.ts",
     "docs:shots": "tsx scripts/docs-demo/capture.ts",
+    "docs:clips": "tsx scripts/docs-demo/clips.ts",
     "lint:fix": "oxlint --fix",
     "verify:stripe-prices": "tsx scripts/verify-stripe-prices.ts"
   },

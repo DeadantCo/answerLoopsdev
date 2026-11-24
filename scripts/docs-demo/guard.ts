@@ -107,3 +107,45 @@ export function assertLocalEnvironment(env: Record<string, string | undefined> =
     )
   }
 }
+
+const LOCAL_APP_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]'])
+
+export type AppUrlCheck = { ok: true; host: string } | { ok: false; reason: string }
+
+/**
+ * Whether a base URL points at an app running on this machine. The clip
+ * recorder clicks through the real dashboard (it approves a draft), so it must
+ * never be pointed at a hosted deployment. Unlike a database URL, the compose
+ * service name is not accepted: the recorder runs on the host, not in a network.
+ */
+export function checkLocalAppUrl(url: string | undefined | null): AppUrlCheck {
+  if (!url || !url.trim()) return { ok: false, reason: 'the app URL is not set' }
+
+  let parsed: URL
+  try {
+    parsed = new URL(url.trim())
+  } catch {
+    return { ok: false, reason: 'the app URL is not a valid URL' }
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return { ok: false, reason: `unsupported protocol "${parsed.protocol}"` }
+  }
+
+  const host = parsed.hostname.toLowerCase()
+  if (!LOCAL_APP_HOSTS.has(host)) {
+    return { ok: false, reason: `host "${host || '(empty)'}" is not local (allowed: localhost, 127.0.0.1, [::1])` }
+  }
+  return { ok: true, host }
+}
+
+/** Throws unless the app URL points at this machine. */
+export function assertLocalAppUrl(url: string | undefined | null, label = 'DOCS_BASE_URL'): void {
+  const result = checkLocalAppUrl(url)
+  if (!result.ok) {
+    throw new Error(
+      `Refusing to record docs clips: ${label} check failed (${result.reason}). ` +
+        'Clips click through the dashboard and may only be recorded against a local app.'
+    )
+  }
+}
