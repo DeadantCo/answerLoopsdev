@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { ActivityChannelChips, type ActivityChannelCount } from '@/components/dashboard/activity-channel-chips'
 import { ActivityDisclosure } from '@/components/dashboard/activity-disclosure'
 import { LocalDate } from '@/components/ui/local-date'
 import { parseAttachmentLines } from '@/lib/slack/attachment-lines'
@@ -19,9 +20,10 @@ function title(ticket: Ticket): string {
  * recent first. Shows nothing when there is nothing new, so a quiet workspace
  * has no empty box on its dashboard.
  */
-export function ActivityPanel({ tickets, total, snapshot, proof }: {
+export function ActivityPanel({ tickets, total, channels = [], snapshot, proof }: {
   tickets: Ticket[]
   total: number
+  channels?: ActivityChannelCount[]
   snapshot?: string
   proof?: string
 }) {
@@ -35,6 +37,7 @@ export function ActivityPanel({ tickets, total, snapshot, proof }: {
       headingId={ACTIVITY_HEADING_ID}
       total={tickets.length ? total : 0}
       viewAll={viewAll}
+      channels={<ActivityChannelChips channels={channels} />}
       previewNote={total > ACTIVITY_PREVIEW_LIMIT ? `Showing the latest ${ACTIVITY_PREVIEW_LIMIT} of ${total}` : undefined}
       snapshot={snapshot}
       proof={proof}

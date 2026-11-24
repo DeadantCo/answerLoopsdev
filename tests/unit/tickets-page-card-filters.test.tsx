@@ -103,3 +103,58 @@ describe('TicketsPage card filters', () => {
     expect(params.get('cursor')).toBe('next-cursor')
   })
 })
+
+describe('TicketsPage channel filter', () => {
+  it('passes a known ?platform= value to the query and selects it in the filter bar', async () => {
+    await renderPage({ platform: 'github', newActivity: '1', sort: 'activity' })
+
+    expect(getTickets).toHaveBeenCalledWith(
+      expect.objectContaining({ platform: 'github', newActivity: true, sort: 'activity' }),
+      7,
+      51,
+      undefined,
+      true
+    )
+    expect(screen.getByRole('combobox', { name: 'Channel' })).toHaveValue('github')
+  })
+
+  it('ignores an unknown channel instead of failing', async () => {
+    await renderPage({ platform: 'carrier-pigeon' })
+
+    expect(getTickets).toHaveBeenCalledWith(expect.objectContaining({ platform: undefined }), 7, 51, undefined, true)
+    expect(screen.getByRole('combobox', { name: 'Channel' })).toHaveValue('')
+  })
+
+  it('offers All channels and one option per channel', async () => {
+    await renderPage({})
+
+    const options = Array.from(screen.getByRole('combobox', { name: 'Channel' }).querySelectorAll('option')).map((o) => [o.value, o.textContent])
+    expect(options).toEqual([
+      ['', 'All channels'],
+      ['discord', 'Discord'],
+      ['slack', 'Slack'],
+      ['google_chat', 'Google Chat'],
+      ['telegram', 'Telegram'],
+      ['email', 'Email'],
+      ['github', 'GitHub'],
+      ['discourse', 'Discourse'],
+      ['circle', 'Circle'],
+      ['mcp', 'Agent'],
+    ])
+  })
+
+  it('carries the channel through the Load more link', async () => {
+    getTickets.mockResolvedValue(Array.from({ length: 51 }, (_, i) => ({ id: i + 1, created_at: '2026-01-01' })))
+    await renderPage({ platform: 'slack', newActivity: '1' })
+
+    const params = new URLSearchParams(screen.getByRole('link', { name: 'Load more' }).getAttribute('href')!.split('?')[1])
+    expect(params.get('platform')).toBe('slack')
+    expect(params.get('newActivity')).toBe('1')
+  })
+
+  it('keeps the channel when clearing only the card filters', async () => {
+    await renderPage({ needsReview: '1', platform: 'email' })
+
+    expect(screen.getByRole('link', { name: 'Clear card filter' })).toHaveAttribute('href', '/tickets?platform=email')
+  })
+})

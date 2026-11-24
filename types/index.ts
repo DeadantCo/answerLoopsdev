@@ -356,6 +356,8 @@ export interface TicketFilters {
   status?: TicketStatus
   priority?: Priority
   category?: TicketCategory
+  /** Tickets that came in through this channel. */
+  platform?: SourcePlatform
   /** Tickets with an AI assessment marked as auto-deflected. */
   autoDeflected?: boolean
   /** Open tickets whose AI assessment requires human review. */

@@ -10,7 +10,7 @@ Every question posted in a channel you have connected becomes a **ticket**: one 
   shot="tickets-list"
   only={['filters', 'source', 'priority', 'ai-status', 'ticket-row']}
   notes={{
-    filters: 'Narrow the inbox by status, priority, or category, then press Filter. Export CSV sits in the same bar.',
+    filters: 'Narrow the inbox by status, priority, category, or channel, then press Filter. Export CSV sits in the same bar.',
     source: 'A colored badge shows which platform the question came from.',
     priority: 'Priority is set from the AI\'s severity assessment when the ticket arrives.',
     'ai-status': 'Shows what the AI did: drafted an answer for review, answered automatically, or left it to a person.',
@@ -45,8 +45,9 @@ Use the dropdowns at the top of the page, then press **Filter**:
 - **Priority:** Critical, High, Medium, or Low
 - **Category:** Bug, Feature Request, Documentation, How-to, or General Question
 
-Two more controls sit beside them:
+Three more controls sit beside them:
 
+- **Channel:** **All channels** shows every ticket. Pick one channel, such as GitHub or Discord, to see only the tickets that came in through it. The Activity panel's channel chips link here.
 - **Sort:** **Newest first** orders by when the ticket was created. **Latest activity** orders by the most recent message on the conversation, so an old ticket with a fresh reply comes to the top.
 - **New activity:** tick it to show only tickets where the customer has written since your team last opened them.
 

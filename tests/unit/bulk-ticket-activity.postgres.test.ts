@@ -9,7 +9,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import * as tables from '@/lib/db/schema'
 import { tickets } from '@/lib/db/schema'
 import { hardPurgeOrg } from '@/lib/db/queries/orgs'
-import { deleteTicket, getTickets, getUnseenActivityTickets, markAllTicketsSeen, markTicketSeen, recordCustomerReply } from '@/lib/db/queries/tickets'
+import { deleteTicket, getTickets, getUnseenActivityCountsByPlatform, getUnseenActivityTickets, markAllTicketsSeen, markTicketSeen, recordCustomerReply } from '@/lib/db/queries/tickets'
 
 const state = vi.hoisted(() => ({ getDb: vi.fn() }))
 vi.mock('@/lib/db/drizzle', () => state)
@@ -403,4 +403,55 @@ describe.skipIf(!url)('bulk ticket activity on PostgreSQL', () => {
     expect(await client`SELECT id FROM ticket_events`).toEqual([])
     expect(await client`SELECT id FROM notifications`).toEqual([])
   }, 12_000)
+
+  describe('by channel', () => {
+    async function seedChannel(org: number, platform: string, size: number, reply: string | null = old, seen: string | null = null) {
+      await client`
+        INSERT INTO tickets (org_id, org_ticket_number, last_customer_reply_at, last_seen_at, status, content, source_platform)
+        SELECT ${org}, 7, ${reply}::timestamptz, ${seen}::timestamptz, 'open', 'Question', ${platform}
+        FROM generate_series(1, ${size})
+      `
+    }
+
+    it('counts only unseen tickets per channel, largest first then by name, within one organization', async () => {
+      await seedChannel(1, 'slack', 2)
+      await seedChannel(1, 'github', 3)
+      await seedChannel(1, 'email', 2)
+      await seedChannel(1, 'discord', 5, old, later)
+      await seedChannel(1, 'telegram', 4, null)
+      await seedChannel(2, 'github', 9)
+      await seedChannel(2, 'circle', 1)
+
+      expect(await getUnseenActivityCountsByPlatform(1)).toEqual([
+        { platform: 'github', count: 3 },
+        { platform: 'email', count: 2 },
+        { platform: 'slack', count: 2 },
+      ])
+      expect(await getUnseenActivityCountsByPlatform(2)).toEqual([
+        { platform: 'github', count: 9 },
+        { platform: 'circle', count: 1 },
+      ])
+      expect(await getUnseenActivityCountsByPlatform(3)).toEqual([])
+    })
+
+    it('adds up to the Activity badge total', async () => {
+      await seedChannel(1, 'slack', 2)
+      await seedChannel(1, 'github', 3)
+      const counts = await getUnseenActivityCountsByPlatform(1)
+      const { total } = await getUnseenActivityTickets(1, 5)
+      expect(counts.reduce((sum, { count }) => sum + count, 0)).toBe(total)
+    })
+
+    it('filters getTickets to the channel, alone and combined with new activity', async () => {
+      await seedChannel(1, 'github', 2)
+      await seedChannel(1, 'github', 1, old, later)
+      await seedChannel(1, 'slack', 3)
+      await seedChannel(2, 'github', 4)
+
+      expect(await getTickets({ platform: 'github' }, 1)).toHaveLength(3)
+      expect(await getTickets({ platform: 'github', newActivity: true }, 1)).toHaveLength(2)
+      expect(await getTickets({ platform: 'slack', newActivity: true }, 1)).toHaveLength(3)
+      expect(await getTickets({ platform: 'telegram' }, 1)).toHaveLength(0)
+    })
+  })
 })

@@ -1,4 +1,4 @@
-import { eq, and, or, inArray, sql, desc, lt, ne, isNotNull, isNull, gt, getTableColumns, type SQL } from 'drizzle-orm'
+import { eq, and, or, inArray, sql, asc, desc, lt, ne, isNotNull, isNull, gt, getTableColumns, type SQL } from 'drizzle-orm'
 import { ticketActivityMessage } from '@/lib/tickets/activity'
 import { getDb } from '../drizzle'
 import { lockTicketActivity } from '../locks'
@@ -17,7 +17,7 @@ import {
   csatRatings,
   kbArticles,
 } from '../schema'
-import type { Ticket, CreateTicketInput, TicketFilters, TicketReply, TicketReplyRole, TicketEvent, AIDraftSkipReason } from '@/types'
+import type { Ticket, SourcePlatform, CreateTicketInput, TicketFilters, TicketReply, TicketReplyRole, TicketEvent, AIDraftSkipReason } from '@/types'
 
 function toTicket(row: typeof tickets.$inferSelect): Ticket {
   return {
@@ -265,6 +265,21 @@ export async function getUnseenActivityTickets(orgId: number, limit = 8) {
   return { tickets: rows.map(toTicket), total: rows[0]?.total ?? 0, snapshot: rows[0]?.snapshot }
 }
 
+/**
+ * Unseen-activity tickets per channel, largest first and then by channel name
+ * so the order is stable. Uses the same condition as the Activity badge.
+ */
+export async function getUnseenActivityCountsByPlatform(orgId: number): Promise<{ platform: SourcePlatform; count: number }[]> {
+  const count = sql<number>`count(*)::int`
+  const rows = await getDb()
+    .select({ platform: tickets.sourcePlatform, count })
+    .from(tickets)
+    .where(and(eq(tickets.orgId, orgId), unseenActivityCondition))
+    .groupBy(tickets.sourcePlatform)
+    .orderBy(desc(count), asc(tickets.sourcePlatform))
+  return rows.map((row) => ({ platform: row.platform as SourcePlatform, count: row.count }))
+}
+
 /** Records that something happened on the conversation, without marking it as customer activity. */
 async function touchTicketActivity(ticketId: number): Promise<void> {
   await getDb().update(tickets).set({ lastActivityAt: new Date() }).where(eq(tickets.id, ticketId))
@@ -331,6 +346,7 @@ export async function getTickets(
   if (filters.status) conditions.push(eq(tickets.status, filters.status))
   if (filters.priority) conditions.push(eq(tickets.priority, filters.priority))
   if (filters.category) conditions.push(eq(tickets.category, filters.category))
+  if (filters.platform) conditions.push(eq(tickets.sourcePlatform, filters.platform))
   for (const filter of Object.keys(ticketCardConditions) as TicketCardFilter[]) {
     if (filters[filter]) conditions.push(ticketCardConditions[filter])
   }
