@@ -54,6 +54,16 @@ When you are done, your deployment has a Chat app listening at your public addre
   `GOOGLE_CHAT_ENDPOINT_URL` must exactly match the HTTP endpoint URL you entered in the Chat app configuration, including any trailing slash. If they differ, Google Chat events are rejected and nothing reaches answerLoops.
 </Callout>
 
+## Which messages the app receives
+
+The **Functionality** options above control where the app can be used (1:1 messages, spaces and group conversations), not which messages in a space Google Chat sends to your endpoint. For an app that receives events at an HTTP endpoint, Google Chat sends:
+
+- direct messages to the app,
+- messages in a space that @mention the app, and
+- slash commands.
+
+Other messages in a space are not sent to the app, and no option in the Chat app configuration changes that, so answerLoops can't see them. Everything that does reach `/api/google-chat/events` is ingested as a ticket. Tell your team to @mention the app when they ask a question in a paired space.
+
 ## Who can install the app
 
 The Chat app you just created is an **unlisted app**. It is quick to stand up, but each customer's Workspace admin has two manual steps: enabling third-party Chat apps for their domain (in their **Admin Console → Apps → Google Workspace Marketplace apps** settings), then adding the app to a space.
@@ -65,6 +75,9 @@ A [Google Workspace Marketplace](https://developers.google.com/workspace/marketp
 <Accordions>
   <Accordion title="Messages in the space never reach answerLoops">
     Check that the HTTP endpoint URL in the Chat app configuration, `GOOGLE_CHAT_ENDPOINT_URL` and your real public address are all identical, and that the `app` service was restarted after you set the variables.
+  </Accordion>
+  <Accordion title="Tickets only appear when someone @mentions the app">
+    This is expected. Google Chat only sends an HTTP-endpoint app direct messages, @mentions and slash commands, and there is no Chat app setting that delivers every message in a space. Ask people to @mention the app with their question. If even @mentions create no tickets, check the endpoint URL as described above.
   </Accordion>
   <Accordion title="The app cannot be added to a space">
     The Workspace admin on the installing side may need to enable third-party Chat apps for their domain first, and the person adding the app must be inside the **Visibility** list you configured.
