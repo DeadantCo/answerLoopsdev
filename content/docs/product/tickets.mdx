@@ -143,6 +143,18 @@ Because every message is kept, a ticket that several people answered reads as on
 
 A follow-up on a resolved or closed ticket reopens it. Your team is [notified](#know-when-a-customer-replies) of each follow-up, and the AI does not re-answer them. On Slack, Google Chat, Telegram, GitHub, Discourse, and Circle, a short follow-up like "thanks, that worked" is kept when it continues a conversation you already have. Delivering the same message twice never adds it twice.
 
+### How messages are formatted
+
+The **Original Message** and the **Conversation** show each message the way its author saw it on their own platform, not as raw formatting characters.
+
+| Channel | How it appears |
+| --- | --- |
+| Discord, Discourse, GitHub, Agent | Markdown: headings, lists, tables, bold, italic, code, and links are formatted. |
+| Slack, Google Chat | Bold, italic, strikethrough, code, and links are formatted. Mentions and channel names show as readable text such as `@here` or `#general`. |
+| Telegram, Email, Circle | Plain text, shown exactly as received. |
+
+Links open in a new tab, and only web links are clickable. Anything else, including dashboard-relative links, shows as text. HTML in a message is never rendered; it appears as the literal text. File attachments always show as links under the message.
+
 ### Jump back to the original message
 
 A link under the title takes you to the question on its own platform:

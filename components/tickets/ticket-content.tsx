@@ -2,6 +2,7 @@ import Image from 'next/image'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { parseAttachmentLines } from '@/lib/slack/attachment-lines'
+import { parseSlackMrkdwn, type MrkdwnNode } from '@/lib/slack/mrkdwn'
 import type { SourcePlatform } from '@/types'
 
 function isSafeExternalUrl(value: string | undefined): value is string {
@@ -47,8 +48,69 @@ const markdownComponents: Components = {
     ),
 }
 
+type MessageTreatment = 'markdown' | 'mrkdwn' | 'plain'
+
+// How each channel's stored message text is displayed. Typed as a Record so a
+// new channel has to pick a treatment.
+//  - markdown: the channel stores Markdown (Discord; Discourse stores the post's
+//    raw Markdown; GitHub; MCP agents write Markdown).
+//  - mrkdwn: Slack and Google Chat store their own syntax, converted to elements.
+//  - plain: Telegram stores text without its formatting entities, email is
+//    already converted from HTML to text, and Circle is stored as received.
+const MESSAGE_TREATMENT: Record<SourcePlatform, MessageTreatment> = {
+  github: 'markdown',
+  discord: 'markdown',
+  discourse: 'markdown',
+  mcp: 'markdown',
+  slack: 'mrkdwn',
+  google_chat: 'mrkdwn',
+  telegram: 'plain',
+  email: 'plain',
+  circle: 'plain',
+}
+
+function renderMrkdwn(nodes: MrkdwnNode[]): React.ReactNode {
+  return nodes.map((node, i) => {
+    switch (node.type) {
+      case 'text':
+        return node.text
+      case 'bold':
+        return <strong key={i}>{renderMrkdwn(node.children)}</strong>
+      case 'italic':
+        return <em key={i}>{renderMrkdwn(node.children)}</em>
+      case 'strike':
+        return <s key={i}>{renderMrkdwn(node.children)}</s>
+      case 'code':
+        return (
+          <code key={i} className="rounded bg-gray-100 px-1 py-0.5 font-mono text-[0.85em]">
+            {node.text}
+          </code>
+        )
+      case 'codeblock':
+        return (
+          <pre key={i} className="my-1 overflow-x-auto whitespace-pre-wrap rounded bg-gray-100 p-2 font-mono text-xs">
+            {node.text}
+          </pre>
+        )
+      case 'link':
+        return (
+          <a
+            key={i}
+            href={node.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 underline break-all hover:text-blue-800"
+          >
+            {renderMrkdwn(node.children)}
+          </a>
+        )
+    }
+  })
+}
+
 // Renders ticket/reply content, turning any [Attachment: name] — url
-// lines into clickable links. GitHub messages additionally support safe Markdown.
+// lines into clickable links. The message body is formatted per channel
+// (see MESSAGE_TREATMENT); raw HTML is never rendered.
 export function TicketContent({
   content,
   className,
@@ -59,19 +121,23 @@ export function TicketContent({
   sourcePlatform?: SourcePlatform
 }) {
   const { text, attachments } = parseAttachmentLines(content)
+  const treatment = sourcePlatform ? MESSAGE_TREATMENT[sourcePlatform] : 'plain'
 
   return (
     <div className={className}>
-      {text &&
-        (sourcePlatform === 'github' ? (
-          <div className="text-sm text-gray-800 break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-              {text}
-            </ReactMarkdown>
-          </div>
-        ) : (
-          <p className="text-sm text-gray-800 whitespace-pre-wrap">{text}</p>
-        ))}
+      {text && treatment === 'markdown' && (
+        <div className="text-sm text-gray-800 break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+            {text}
+          </ReactMarkdown>
+        </div>
+      )}
+      {text && treatment === 'mrkdwn' && (
+        <div className="text-sm text-gray-800 whitespace-pre-wrap break-words">
+          {renderMrkdwn(parseSlackMrkdwn(text))}
+        </div>
+      )}
+      {text && treatment === 'plain' && <p className="text-sm text-gray-800 whitespace-pre-wrap">{text}</p>}
 
       {attachments.length > 0 && (
         <div className={text ? 'mt-2 flex flex-col gap-1' : 'flex flex-col gap-1'}>
