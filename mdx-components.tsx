@@ -11,6 +11,7 @@ import { Mermaid } from '@/components/docs/mermaid'
 import { IntegrationLogo } from '@/components/docs/integration-logo'
 import { LoopIllustration } from '@/components/docs/loop-illustration'
 import { Screenshot } from '@/components/docs/screenshot'
+import { DemoClip } from '@/components/docs/demo-clip'
 import OpenAPIPage from '@/components/docs/openapi-page-server'
 import { channelListSentence } from '@/lib/marketing/channels'
 import {
@@ -97,6 +98,7 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     IntegrationLogo,
     LoopIllustration,
     Screenshot,
+    DemoClip,
     Hotspots,
     Mermaid,
     // Blog posts reference the connected-channel list in prose; this keeps
