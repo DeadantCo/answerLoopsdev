@@ -8,11 +8,11 @@ icon: MessageCircle
   platform="Google Chat"
   source={{
     title: 'Your Chat space',
-    text: 'A member posts in the Google Chat space you paired with a connect code. The answerLoops Chat app is in that space and replies there.',
+    text: 'A member @mentions the answerLoops Chat app in the Google Chat space you paired with a connect code. The app is in that space and replies there.',
   }}
   trigger={{
     title: 'Chat app event',
-    text: 'Google Chat sends each new message in the space to answerLoops as it is posted, and answerLoops immediately answers Chat with a short acknowledgment. There is no polling.',
+    text: 'Google Chat sends each message that @mentions the app (or uses a slash command) to answerLoops as it is posted, and answerLoops immediately answers Chat with a short acknowledgment. There is no polling.',
   }}
   steps={[
     { title: 'Create ticket', text: 'The message becomes a ticket, and a reply inside a thread that already has a ticket is added to it. Attachments are kept as links, and messages under 10 characters with no attachment are skipped.' },
@@ -31,7 +31,9 @@ icon: MessageCircle
 
 Google Chat connects differently than Slack or Discord. Google Chat's app model has no equivalent of Slack's "Add to Slack" OAuth button for installing across an arbitrary customer's Workspace — there's no redirect-based install answerLoops can drive. Instead, an org generates a one-time **connect code** in answerLoops, a Workspace admin adds the answerLoops app to a Chat space themselves, and posting that code in the space pairs it to the org.
 
-Every message in a paired space is ingested as a ticket, exactly like every other channel:
+Every message Google Chat delivers to the answerLoops app from a paired space is ingested as a ticket, exactly like every other channel. Which messages Google Chat delivers is decided by Google, not by answerLoops: a Chat app that receives events at an HTTP endpoint is sent direct messages, messages that @mention the app, and slash commands. It is not sent every plain message in a space, and no Chat app setting changes that. In practice, people ask a question in a paired space by @mentioning the app.
+
+Once a message arrives:
 - AI deflection with a configurable confidence threshold — gated by the **Automatic Deflections** toggle below
 - Ticket creation and deduplication
 - Thread-aware replies — a reply inside a Google Chat thread appends to its existing ticket instead of creating a new one
@@ -150,8 +152,11 @@ See [Google Chat App Setup](/docs/self-hosting/google-chat-app) for the full one
   <Accordion title="Escalation mention never appears">
     The escalation user id must be the Chat resource name, formatted `users/<numeric id>` — not an email address or display name. Grab the correct id from the Google Chat API's people/membership lookups, or from a prior message by that user in the space.
   </Accordion>
+  <Accordion title="Tickets only appear when someone @mentions the app">
+    This is how Google Chat delivers messages to an app that receives events at an HTTP endpoint: it sends direct messages, messages that @mention the app, and slash commands, and does not send other messages in a space. answerLoops ingests every message it receives, so a plain message that Google never sent can't become a ticket, and nothing is logged because nothing arrived. There is no Chat app setting that turns on delivery of every message, so have people @mention the answerLoops app when they ask a question. See [Which messages the app receives](/docs/self-hosting/google-chat-app#which-messages-the-app-receives).
+  </Accordion>
   <Accordion title="Messages in the space aren't creating tickets">
-    Confirm the space shows **Connected** on the Settings page (an unpaired space is simply ignored — not an error). Also check whether the message is very short (under 10 characters) with no attachment and isn't a reply inside an already-tracked thread; those are filtered as noise by design.
+    Confirm the space shows **Connected** on the Settings page (an unpaired space is simply ignored — not an error). Confirm the message @mentions the app (see the entry above). Also check whether the message is very short (under 10 characters) with no attachment and isn't a reply inside an already-tracked thread; those are filtered as noise by design.
   </Accordion>
   <Accordion title="Webhook returns 403 Forbidden">
     This means either `GOOGLE_CHAT_ENDPOINT_URL` isn't set on the server, or the inbound request's signed token failed verification — check that the configured endpoint URL matches character-for-character (including no trailing slash) what's set in the Chat app's connection settings in Google Cloud Console.
